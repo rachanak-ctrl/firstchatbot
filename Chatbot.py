@@ -1,5 +1,5 @@
 import streamlit as st
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.chat_history import BaseChatMessageHistory, InMemoryChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -14,23 +14,23 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "How can I help you today?"}
     ]
 
-# Initialize ChatOpenAI with Together AI
-llm = ChatOpenAI(
-    model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-    api_key=st.secrets["TOGETHER_API_KEY"],
-    base_url="https://api.together.xyz/v1",
+# 1. Initialize ChatGoogleGenerativeAI using Gemini 3.5 Flash
+# It automatically reads your key from Streamlit Secrets or Environment Variables
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3.5-flash",
+    google_api_key=st.secrets.get("GEMINI_API_KEY"),
     temperature=0.7
 )
 
 # Create a prompt template with message history
-prompt = ChatPromptTemplate.from_messages([
+prompt_template = ChatPromptTemplate.from_messages([
     ("system", "You are a helpful AI assistant. Have a natural conversation with the user."),
     MessagesPlaceholder(variable_name="history"),
     ("human", "{input}")
 ])
 
 # Create the chain
-chain = prompt | llm
+chain = prompt_template | llm
 
 # Function to get session history
 def get_session_history() -> BaseChatMessageHistory:
@@ -54,20 +54,20 @@ for message in st.session_state.messages:
         st.write(message["content"])
 
 # Chat input
-if prompt := st.chat_input("Your question"):
+if user_input := st.chat_input("Your question"):
     # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.messages.append({"role": "user", "content": user_input})
     
     # Display user message
     with st.chat_message("user"):
-        st.write(prompt)
+        st.write(user_input)
     
     # Generate assistant response
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             # Invoke the conversation chain
             response = conversation.invoke(
-                {"input": prompt},
+                {"input": user_input},
                 config={"configurable": {"session_id": "default"}}
             )
             
